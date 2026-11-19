@@ -1,0 +1,12 @@
+{
+  "name": "critical-path-studio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "An interactive critical path and schedule risk planner.",
+  "scripts": {
+    "start": "node scripts/serve.cjs",
+    "test": "node --test tests/*.test.cjs",
+    "bundle": "node scripts/bundle.cjs"
+  },
+  "engines": { "node": ">=22" }
+}

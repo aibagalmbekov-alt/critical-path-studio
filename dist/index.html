@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Map project dependencies, find the critical path, and test what happens when a task slips.">
+  <meta name="theme-color" content="#f5f6fa">
+  <title>Critical Path Studio</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+  <script defer src="scheduler.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <svg xmlns="http://www.w3.org/2000/svg" class="icon-library" aria-hidden="true">
+    <symbol id="i-logo" viewBox="0 0 24 24"><path d="M5 6h7v12h7M12 12h7"/><circle cx="5" cy="6" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="19" cy="18" r="2"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5l3 1.5"/></symbol>
+    <symbol id="i-fit" viewBox="0 0 24 24"><path d="M9 4H4v5m11-5h5v5M4 15v5h5m11-5v5h-5"/></symbol>
+    <symbol id="i-gantt" viewBox="0 0 24 24"><path d="M4 5h9M7 12h10m-5 7h8"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M4 16v4h16v-4"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V3m-4 4 4-4 4 4M4 16v4h16v-4"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9m4 0h3M4 17h3m4 0h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="m13 2-8 12h6l-1 8 9-12h-6l1-8z"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h1m-1 6h1m-1 6h1"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="m14 6 4 4M4 20l4.5-1 11-11a2.8 2.8 0 0 0-4-4l-11 11L4 20z"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4 10a8 8 0 1 1 .7 6M4 5v5h5"/></symbol>
+  </svg>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <div class="brand"><span class="brand-icon"><svg class="icon"><use href="#i-logo"/></svg></span><span>Critical Path <strong>Studio</strong></span></div>
+      <div class="top-actions">
+        <input type="file" id="import-file" accept=".json,application/json" hidden>
+        <button class="button quiet" id="import-button" type="button" title="Import project JSON"><svg class="icon"><use href="#i-upload"/></svg> <span>Import</span></button>
+        <button class="button quiet" id="export-button" type="button" title="Export project JSON"><svg class="icon"><use href="#i-download"/></svg> <span>Export</span></button>
+        <button class="button primary" id="add-task" type="button"><svg class="icon"><use href="#i-plus"/></svg> Add task</button>
+      </div>
+    </div>
+  </header>
+  <main class="wrap">
+    <section class="hero" aria-labelledby="project-title">
+      <div class="hero-text">
+        <p class="kicker"><svg class="icon"><use href="#i-logo"/></svg> Dependency planner</p>
+        <div class="hero-title"><h1 id="project-title">Product launch</h1><button class="icon-button rename" id="rename-project" type="button" aria-label="Rename project" title="Rename project"><svg class="icon"><use href="#i-edit"/></svg></button></div>
+        <p class="hero-description">Find the tasks that set your deadline and see what happens when one slips.</p>
+      </div>
+      <div class="hero-radar" aria-hidden="true"><span></span><span></span><span></span><i></i><i></i><i></i><i></i><i></i></div>
+    </section>
+
+    <section class="metrics" aria-label="Project metrics">
+      <div class="metric"><span class="metric-icon violet"><svg class="icon"><use href="#i-clock"/></svg></span><div><p>Baseline duration</p><div class="metric-value"><strong id="baseline-days">16</strong> <span id="baseline-unit">days</span></div></div></div>
+      <div class="metric"><span class="metric-icon blue"><svg class="icon"><use href="#i-bolt"/></svg></span><div><p>Critical tasks</p><div class="metric-value"><strong id="critical-count">5</strong> <span id="critical-unit">of 8 tasks</span></div></div></div>
+      <div class="metric"><span class="metric-icon mint"><svg class="icon"><use href="#i-sliders"/></svg></span><div><p>Simulated finish</p><div class="metric-value"><strong id="scenario-days">16</strong> <span id="scenario-unit">days</span> <span class="delta" id="delta" hidden></span></div></div></div>
+    </section>
+
+    <div class="workspace-grid">
+      <section class="panel graph-panel" aria-labelledby="workspace-title">
+        <div class="panel-header">
+          <div><h2 id="workspace-title">Schedule map</h2><p id="view-description">Follow the dependencies between tasks.</p></div>
+          <div class="tabs" role="tablist" aria-label="Schedule view">
+            <button id="graph-tab" role="tab" type="button" aria-selected="true" aria-controls="graph-panel"><svg class="icon"><use href="#i-logo"/></svg> Graph</button>
+            <button id="gantt-tab" role="tab" type="button" aria-selected="false" aria-controls="gantt-panel" tabindex="-1"><svg class="icon"><use href="#i-gantt"/></svg> Timeline</button>
+          </div>
+        </div>
+        <div id="graph-panel" role="tabpanel" aria-labelledby="graph-tab">
+          <div class="canvas">
+            <div class="graph-scroll" id="graph-scroll" tabindex="0" aria-label="Scrollable dependency graph"><div id="graph-graphic" class="graph-graphic"></div></div>
+            <div class="zoom" id="zoom-controls" aria-label="Zoom controls">
+              <button id="zoom-out" type="button" title="Zoom out" aria-label="Zoom out"><svg class="icon"><use href="#i-minus"/></svg></button>
+              <button id="zoom-in" type="button" title="Zoom in" aria-label="Zoom in"><svg class="icon"><use href="#i-plus"/></svg></button>
+              <button id="zoom-fit" type="button" title="Reset zoom" aria-label="Reset zoom"><svg class="icon"><use href="#i-fit"/></svg></button>
+            </div>
+          </div>
+        </div>
+        <div id="gantt-panel" role="tabpanel" aria-labelledby="gantt-tab" hidden><div class="timeline-scroll" id="timeline" tabindex="0" aria-label="Scrollable schedule timeline"></div></div>
+        <div class="graph-footer"><span><i class="key critical"></i> Critical path</span><span><i class="key"></i> <span id="other-legend">Other dependencies</span></span><span class="legend-baseline" id="baseline-legend" hidden><i class="key dashed"></i> Baseline finish</span></div>
+      </section>
+
+      <aside class="panel simulation" aria-labelledby="simulation-title">
+        <div class="sim-header"><span class="metric-icon violet"><svg class="icon"><use href="#i-sliders"/></svg></span><div><h2 id="simulation-title">Delay simulator</h2><p>Test a change to one task.</p></div></div>
+        <div class="sim-fields">
+          <label for="scenario-task">Task</label>
+          <select id="scenario-task"></select>
+          <div class="slider-label"><label for="delay">Added delay</label><output for="delay" id="delay-value">0 days</output></div>
+          <input type="range" id="delay" min="0" max="30" value="0" step="1">
+          <div class="range-labels"><span>0 days</span><span>30 days</span></div>
+        </div>
+        <div class="impact" id="impact" aria-live="polite"><strong id="impact-title">No delay applied</strong><p id="impact-text">Try adding 3 days to Backend to see the critical path change.</p></div>
+        <div class="chain"><h3 id="chain-title">Critical path</h3><p id="chain-text"></p><span id="chain-count" hidden></span></div>
+        <button class="button text-button" id="clear-scenario" type="button"><svg class="icon"><use href="#i-reset"/></svg> Reset delay</button>
+      </aside>
+    </div>
+
+    <section class="panel task-panel" aria-labelledby="task-title">
+      <div class="panel-header"><div><h2 id="task-title">Task schedule</h2><p>Edit durations and the tasks they depend on.</p></div><div class="task-actions"><button class="button secondary" id="new-project" type="button"><svg class="icon"><use href="#i-plus"/></svg> New project</button><button class="button secondary" id="reset-demo" type="button"><svg class="icon"><use href="#i-reset"/></svg> Load demo</button></div></div>
+      <div class="table-scroll">
+        <table><caption class="sr-only">Task timings in days from project start</caption><thead><tr><th scope="col">Task</th><th scope="col">Duration</th><th scope="col">Start</th><th scope="col">Finish</th><th scope="col">Slack</th><th scope="col">Dependencies</th><th scope="col"><span class="sr-only">Edit task</span></th></tr></thead><tbody id="task-rows"></tbody></table>
+      </div>
+    </section>
+    <footer class="footer"><span><svg class="icon"><use href="#i-logo"/></svg> Critical Path Studio</span><span id="storage-state">Projects are saved in this browser.</span></footer>
+  </main>
+
+  <dialog id="task-dialog" aria-labelledby="task-dialog-title">
+    <form id="task-form">
+      <div class="dialog-header"><h2 id="task-dialog-title">Add task</h2><button type="button" class="icon-button" data-close="task-dialog" aria-label="Close"><svg class="icon"><use href="#i-close"/></svg></button></div>
+      <label for="task-name">Task name</label>
+      <input type="text" id="task-name" required maxlength="45" autocomplete="off" placeholder="e.g. Integration testing">
+      <label for="task-duration">Duration in days</label>
+      <input type="number" id="task-duration" min="1" max="365" step="1" value="1" required>
+      <fieldset class="dep-field"><legend>Prerequisites</legend><div id="dep-choices"></div></fieldset>
+      <p id="task-error" class="form-error" role="alert" hidden></p>
+      <div class="dialog-actions"><button type="button" class="button danger" id="delete-task" hidden>Delete task</button><div class="spacer"></div><button type="button" class="button secondary" data-close="task-dialog">Cancel</button><button type="submit" class="button primary">Save task</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="name-dialog" aria-labelledby="name-dialog-title">
+    <form id="name-form">
+      <div class="dialog-header"><h2 id="name-dialog-title">Rename project</h2><button type="button" class="icon-button" data-close="name-dialog" aria-label="Close"><svg class="icon"><use href="#i-close"/></svg></button></div>
+      <label for="project-name">Project name</label>
+      <input type="text" id="project-name" required maxlength="60" autocomplete="off">
+      <p id="name-error" class="form-error" role="alert" hidden></p>
+      <div class="dialog-actions"><div class="spacer"></div><button type="button" class="button secondary" data-close="name-dialog">Cancel</button><button type="submit" class="button primary">Save name</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title">
+    <div class="dialog-header"><h2 id="confirm-title"></h2><button type="button" class="icon-button" data-close="confirm-dialog" aria-label="Close"><svg class="icon"><use href="#i-close"/></svg></button></div>
+    <p id="confirm-detail"></p>
+    <div class="dialog-actions"><div class="spacer"></div><button class="button secondary" data-close="confirm-dialog" type="button" autofocus>Cancel</button><button class="button primary" id="confirm-action" type="button"></button></div>
+  </dialog>
+  <div class="toast" id="toast" role="status" hidden></div>
+</body>
+</html>
